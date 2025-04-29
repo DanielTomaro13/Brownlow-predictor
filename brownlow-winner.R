@@ -222,11 +222,11 @@ model_data <- afl_tables_stats %>%
 
 set.seed(123)
 train_data <- afl_tables_stats %>%
-  filter(Season >= 2003, Season <= 2024) %>%
+  filter(Season >= 2003, Season <= 2023) %>%
   select(all_of(features), Brownlow.Votes)
 
 test_data <- afl_tables_stats %>%
-  filter(Season == 2025) %>%
+  filter(Season == 2024) %>%
   select(all_of(features), Brownlow.Votes)
 
 # Regression - continuous values
@@ -239,23 +239,6 @@ pred_lm <- predict(regression_lm, newdata = test_data)
 # Calculate RMSE
 rmse_lm <- sqrt(mean((pred_lm - test_data$Brownlow.Votes)^2))
 rmse_lm
-
-# Classification - 1 2 or 3
-train_data_class <- train_data %>%
-  mutate(Brownlow.Votes = as.factor(Brownlow.Votes))
-
-test_data_class <- test_data %>%
-  mutate(Brownlow.Votes = as.factor(Brownlow.Votes))
-
-logistic_model <- multinom(Brownlow.Votes ~ ., data = train_data_class)
-summary(logistic_model)
-
-# Predict on test set
-pred_logistic <- predict(logistic_model, newdata = test_data_class)
-
-# Calculate Accuracy
-accuracy_logistic <- mean(as.character(pred_logistic) == as.character(test_data_class$Brownlow.Votes))
-accuracy_logistic * 100
 
 # Predictions using linear
 afl_2025_data <- afl_tables_stats %>%
