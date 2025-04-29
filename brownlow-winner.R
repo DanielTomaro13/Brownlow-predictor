@@ -263,16 +263,18 @@ predicted_brownlow_totals <- afl_2025_predictions %>%
 # Make it more realistic 
 afl_2025_predictions <- afl_tables_stats %>%
   filter(Season == 2025) %>%
-  select(Date, Game_Id, Name, Team, all_of(features)) %>%
+  select(Date, Game_Id, Round, Name, Team, all_of(features), Brownlow.Votes) %>%
   na.omit() %>%
   mutate(
-    Raw_Vote_Pred = predict(regression_lm, newdata = .)
+    Raw_Vote_Pred = predict(regression_lm, newdata = .),
+    Actual_Brownlow_Votes = Brownlow.Votes
   )
+
 
 afl_2025_predictions_fractional <- afl_2025_predictions %>%
   group_by(Game_Id) %>%
   mutate(
-    Sum_Pred = sum(pmax(Raw_Vote_Pred, 0)),  # prevent negatives
+    Sum_Pred = sum(pmax(Raw_Vote_Pred, 0)),
     Scaled_Votes = ifelse(Sum_Pred > 0, (Raw_Vote_Pred / Sum_Pred) * 6, 0)
   ) %>%
   ungroup()
@@ -305,3 +307,37 @@ predicted_brownlow_totals_strict <- afl_2025_predictions_strict %>%
     .groups = "drop"
   ) %>%
   arrange(desc(Total_Predicted_Brownlow_Votes))
+
+# Round by Round
+round_by_round_votes <- afl_2025_predictions_strict %>%
+  select(Name, Team, Round, Allocated_Votes) %>%
+  filter(!is.na(Round)) %>%
+  group_by(Name, Team, Round) %>%
+  summarise(Round_Votes = sum(Allocated_Votes), .groups = "drop")
+
+round_by_round_wide <- round_by_round_votes %>%
+  pivot_wider(
+    names_from = Round,
+    values_from = Round_Votes,
+    names_prefix = "R"
+  )
+
+round_by_round_wide <- round_by_round_votes %>%
+  pivot_wider(
+    names_from = Round,
+    values_from = Round_Votes,
+    names_prefix = "R"
+  )
+
+round_columns <- paste0("R", 1:8)
+
+leaderboard <- round_by_round_wide %>%
+  mutate(Total_Votes = rowSums(select(., all_of(round_columns)), na.rm = TRUE)) %>%
+  arrange(desc(Total_Votes)) %>%
+  select(Total_Votes, Name, Team, all_of(round_columns))
+
+
+leaderboard_clean <- leaderboard %>%
+  mutate(across(starts_with("R"), ~ ifelse(is.na(.), "-", round(., 1))))
+leaderboard_clean
+
